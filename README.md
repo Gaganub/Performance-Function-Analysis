@@ -3,7 +3,6 @@
 <h3 align="center"> On the Economics of Multilingual Few-shot Learning: Modeling the
 Cost-Performance Trade-offs of Machine Translated and Manual Data </h3>
 
-<h4 align="center"> Kabir Ahuja, Monojit Choudhury, Sandipan Dandapat </h4>
 
 <p align="center">
   <a href="https://aclanthology.org/2022.naacl-main.98/"><img src="https://img.shields.io/badge/NAACL%20-2022-blue"></a>
@@ -89,24 +88,6 @@ Here `--c12` specifies the ratio of the unit costs of obtaining translated and m
 
 The generated plots will be stored in `outputs/exp_paths`
 
-# Citation
-
-If you use our code in this repo, please cite our paper `\cite{ahuja-etal-2022-economics}`.
-```
-@inproceedings{ahuja-etal-2022-economics,
-    title = "On the Economics of Multilingual Few-shot Learning: Modeling the Cost-Performance Trade-offs of Machine Translated and Manual Data",
-    author = "Ahuja, Kabir  and
-      Choudhury, Monojit  and
-      Dandapat, Sandipan",
-    booktitle = "Proceedings of the 2022 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies",
-    month = jul,
-    year = "2022",
-    address = "Seattle, United States",
-    publisher = "Association for Computational Linguistics",
-    url = "https://aclanthology.org/2022.naacl-main.98",
-    doi = "10.18653/v1/2022.naacl-main.98",
-    pages = "1369--1384",
-}
 ```
 
 
