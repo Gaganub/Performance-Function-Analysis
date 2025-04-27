@@ -6,7 +6,7 @@ from src.amue_performance_function import AMUEPerfFunc
 
 def fit_nd_eval_amue_model_diff_test(train_df, test_df, lang, pivot_size):
     """
-    Fits the training performance data with AMUE Performance Function
+    Fits the training performance data with the AMUE Performance Function
     and evaluates the model on test data
 
     Inputs:
