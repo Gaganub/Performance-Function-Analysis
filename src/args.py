@@ -7,7 +7,7 @@ def build_parser():
         "-l",
         "--lang",
         default="all",
-        help="Which language to run experiments on. If `all` provided then the experiments will be run for all supported languages",
+        help="Which language to run experiments on. If `all` is provided, then the experiments will be run for all supported languages.",
     )
     parser.add_argument(
         "-p",
