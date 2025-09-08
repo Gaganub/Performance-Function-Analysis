@@ -40,8 +40,6 @@ def iso_perf_curve(x1, y, params):
         - y (float) : Performance Value
         - params (list): A list containing 5 elements each representing a parameter of the AMUE performance function
     
-    """
-
     a0 = params[0]
     a1 = params[1]
     alpha1 = params[2]
