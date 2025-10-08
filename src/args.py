@@ -70,22 +70,24 @@ def create_argument_parser():
         help="Directory to save experiment outputs."
     )
 
+    def add_common_arguments(parser):
+    """Attach commonly used experiment arguments to the parser."""
     parser.add_argument(
-        "--test-split-frac",
+        "--test_split_fraction",
         type=float,
         default=0.2,
-        help="Proportion of dataset to allocate for testing."
+        help="Fraction of the dataset to be used as the test split."
     )
-
     return parser
 
 
-def parse_arguments():
-    """Parse and return the command-line arguments."""
-    parser = create_argument_parser()
+def get_args():
+    """Initialize the argument parser, add arguments, and return parsed arguments."""
+    parser = create_argument_parser()  # assumes base parser function exists
+    parser = add_common_arguments(parser)
     return parser.parse_args()
 
 
 if __name__ == "__main__":
-    args = parse_arguments()
-    print(args)
+    arguments = get_args()
+    print(vars(arguments))  # display arguments as a dictionary
