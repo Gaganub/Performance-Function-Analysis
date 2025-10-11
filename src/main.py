@@ -41,6 +41,18 @@ class ModelEvaluationResults(NamedTuple):
 
 class PerformanceFunctionAnalyzer:
     """A class to analyze performance functions by fitting and evaluating models."""
+    # Constants for column names and keys
+    TGT_LANG_COL = "tgt_lang"
+    PIVOT_SIZE_COL = "en_pivot_size"
+    F1_SCORE_COL = "F1-Score"
+    PREDICTED_F1_COL = "Predicted F1-Score"
+    ABS_ERROR_COL = "Absolute Errors"
+    SQ_ERROR_COL = "Squared Errors"
+    
+    # Constants for directories
+    FIT_RESULTS_DIR = "fit_results"
+    EXP_PATHS_DIR = "exp_paths"
+
     def __init__(self, config: PerformanceFunctionConfig):
         self.config = config
         self.perf_df: Optional[pd.DataFrame] = None
@@ -53,14 +65,12 @@ class PerformanceFunctionAnalyzer:
         logger.info(f"Loading data from '{perf_filepath}'...")
         self.perf_df = pd.read_csv(perf_filepath)
 
-        # Set languages and pivot sizes based on config
-        self.langs = sorted(list(self.perf_df["tgt_lang"].unique())) if self.config.lang == "all" else [self.config.lang]
-        self.pivot_sizes = sorted(list(self.perf_df["en_pivot_size"].unique())) if self.config.pivot_size == "all" else [int(self.config.pivot_size)]
+        self.langs = sorted(list(self.perf_df[self.TGT_LANG_COL].unique())) if self.config.lang == "all" else [self.config.lang]
+        self.pivot_sizes = sorted(list(self.perf_df[self.PIVOT_SIZE_COL].unique())) if self.config.pivot_size == "all" else [int(self.config.pivot_size)]
 
-        # Filter dataframe
         self.perf_df = self.perf_df[
-            (self.perf_df["tgt_lang"].isin(self.langs)) &
-            (self.perf_df["en_pivot_size"].isin(self.pivot_sizes))
+            (self.perf_df[self.TGT_LANG_COL].isin(self.langs)) &
+            (self.perf_df[self.PIVOT_SIZE_COL].isin(self.pivot_sizes))
         ]
         logger.info(f"Data loaded successfully. Shape: {self.perf_df.shape}")
 
@@ -70,41 +80,29 @@ class PerformanceFunctionAnalyzer:
         os.makedirs(self.config.output_dir, exist_ok=True)
         
         if "fit_nd_eval" in self.config.mode:
-            pred_dir = os.path.join(self.config.output_dir, "fit_results")
-            os.makedirs(pred_dir, exist_ok=True)
+            os.makedirs(os.path.join(self.config.output_dir, self.FIT_RESULTS_DIR), exist_ok=True)
             
         if "expansion_paths" in self.config.mode:
-            exp_path_dir = os.path.join(self.config.output_dir, "exp_paths")
-            os.makedirs(exp_path_dir, exist_ok=True)
+            os.makedirs(os.path.join(self.config.output_dir, self.EXP_PATHS_DIR), exist_ok=True)
 
     def fit_and_evaluate(self, model_type: str, train_df: pd.DataFrame, test_df: Optional[pd.DataFrame] = None) -> ModelEvaluationResults:
-        """
-        Fits and evaluates a performance function model.
-        
-        Args:
-            model_type: The type of model to use ("amue" or "gpr").
-            train_df: The dataframe containing training data.
-            test_df: An optional dataframe containing test data.
-            
-        Returns:
-            A ModelEvaluationResults NamedTuple containing predictions, parameters, and evaluation metrics.
-        """
+        """Fits and evaluates a performance function model."""
         pred_error_dfs = []
         lang2ps2parms = {}
 
-        for lang, lang_sub_train_df in train_df.groupby("tgt_lang"):
+        for lang, lang_sub_train_df in train_df.groupby(self.TGT_LANG_COL):
             if lang == "en":
                 continue
             
             lang2ps2parms[lang] = {}
-            for pivot_size, lang_ps_sub_train_df in lang_sub_train_df.groupby("en_pivot_size"):
+            for pivot_size, lang_ps_sub_train_df in lang_sub_train_df.groupby(self.PIVOT_SIZE_COL):
                 logger.info(f"Processing Lang: {lang}, Pivot Size: {pivot_size}, Train Size: {len(lang_ps_sub_train_df)}")
                 
                 try:
                     if test_df is not None:
                         lang_ps_sub_test_df = test_df[
-                            (test_df["tgt_lang"] == lang) &
-                            (test_df["en_pivot_size"] == pivot_size)
+                            (test_df[self.TGT_LANG_COL] == lang) &
+                            (test_df[self.PIVOT_SIZE_COL] == pivot_size)
                         ]
                         if model_type == "amue":
                             from src.fit_performance_functions import fit_nd_eval_amue_model_diff_test
@@ -125,20 +123,16 @@ class PerformanceFunctionAnalyzer:
                     continue
                 
                 pred_error_dfs.append(pred_nd_error_df)
-                
-                if isinstance(params, np.ndarray):
-                    lang2ps2parms[lang][pivot_size] = params.tolist()
-                else:
-                    lang2ps2parms[lang][pivot_size] = params
+                lang2ps2parms[lang][pivot_size] = params.tolist() if isinstance(params, np.ndarray) else params
 
         if not pred_error_dfs:
             logger.error("No data was processed. Returning empty results.")
             return ModelEvaluationResults(pd.DataFrame(), {}, 0.0, 0.0, 0.0)
 
         pred_error_df = pd.concat(pred_error_dfs, axis=0)
-        mae = pred_error_df["Absolute Errors"].mean()
-        rmse = np.sqrt(pred_error_df["Squared Errors"].mean())
-        r2 = r2_score(pred_error_df["F1-Score"].values, pred_error_df["Predicted F1-Score"].values)
+        mae = pred_error_df[self.ABS_ERROR_COL].mean()
+        rmse = np.sqrt(pred_error_df[self.SQ_ERROR_COL].mean())
+        r2 = r2_score(pred_error_df[self.F1_SCORE_COL].values, pred_error_df[self.PREDICTED_F1_COL].values)
 
         return ModelEvaluationResults(pred_error_df, lang2ps2parms, mae, rmse, r2)
 
@@ -152,24 +146,24 @@ class PerformanceFunctionAnalyzer:
             self.perf_df, test_size=self.config.test_split_frac, random_state=self.config.seed
         )
 
-        # Fit and evaluate AMUE model
         logger.info("Fitting and Evaluating AMUE Performance Function...")
         amue_results = self.fit_and_evaluate("amue", perf_train_df, perf_test_df)
         logger.info(f"AMUE Evaluation Complete | MAE: {amue_results.mae:.4f} | RMSE: {amue_results.rmse:.4f} | R²: {amue_results.r2:.4f}")
 
-        # Save predictions and errors
+        pred_dir = os.path.join(self.config.output_dir, self.FIT_RESULTS_DIR)
+        
         logger.info("Saving AMUE predictions and errors...")
-        pred_dir = os.path.join(self.config.output_dir, "fit_results")
         pred_file = os.path.join(pred_dir, f"amue_pred_nd_errors_lang{self.config.lang}_pivotSize{self.config.pivot_size}.csv")
         amue_results.pred_error_df.to_csv(pred_file, index=False)
 
-        # Save parameters
         logger.info("Saving AMUE parameters...")
         params_file = os.path.join(pred_dir, f"amue_params_lang{self.config.lang}_pivotSize{self.config.pivot_size}.json")
-        with open(params_file, "w") as f:
-            json.dump(amue_results.params, f, indent=4, ensure_ascii=False)
+        try:
+            with open(params_file, "w") as f:
+                json.dump(amue_results.params, f, indent=4, ensure_ascii=False)
+        except IOError as e:
+            logger.error(f"Failed to save parameters to {params_file}: {e}")
 
-        # Fit and evaluate GPR model
         logger.info("Fitting and Evaluating GPR Performance Function...")
         gpr_results = self.fit_and_evaluate("gpr", perf_train_df, perf_test_df)
         logger.info(f"GPR Evaluation Complete | MAE: {gpr_results.mae:.4f} | RMSE: {gpr_results.rmse:.4f} | R²: {gpr_results.r2:.4f}")
@@ -188,7 +182,6 @@ class PerformanceFunctionAnalyzer:
         for lang in self.langs:
             if lang == "en":
                 continue
-            
             for pivot_size in self.pivot_sizes:
                 if pivot_size == 0:
                     continue
@@ -200,20 +193,16 @@ class PerformanceFunctionAnalyzer:
 
                 a0 = params[0]
                 max_y = self.perf_df[
-                    (self.perf_df["tgt_lang"] == lang) & 
-                    (self.perf_df["en_pivot_size"] == pivot_size)
+                    (self.perf_df[self.TGT_LANG_COL] == lang) & 
+                    (self.perf_df[self.PIVOT_SIZE_COL] == pivot_size)
                 ]["f1_score"].max()
                 
                 ys = np.linspace(np.ceil(a0), max_y, int((max_y - a0) // 1))
                 
                 get_expansion_path(
-                    params,
-                    ys,
-                    self.config.c12,
-                    lang,
-                    pivot_size,
+                    params, ys, self.config.c12, lang, pivot_size,
                     plot=True,
-                    save_dir=os.path.join(self.config.output_dir, "exp_paths"),
+                    save_dir=os.path.join(self.config.output_dir, self.EXP_PATHS_DIR),
                 )
 
     def run(self) -> None:
